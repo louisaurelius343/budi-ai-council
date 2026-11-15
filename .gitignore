@@ -12,3 +12,7 @@ kafe/cache.json
 kantor-ai/events.jsonl
 9router/*.log
 __pycache__/
+sosmed/draf.txt
+sosmed/balas.txt
+sosmed/inbox.json
+sosmed/seen.json

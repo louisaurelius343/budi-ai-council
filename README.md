@@ -1,4 +1,4 @@
-﻿# Budi AI Council
+# Budi AI Council
 
 Ekosistem kecil di sekitar **Budi**, AI agent pribadi di WhatsApp yang dibangun di atas OpenClaw. Isinya: dewan multi-model, RAG atas dokumen sendiri, pencari kafe, pembungkus Hermes, gerbang model (9router), dan **Kantor AI**, yaitu pemantau visual tempat semua agen terlihat bekerja.
 
@@ -9,10 +9,11 @@ flowchart LR
     B -->|skill cari-dokumen| R[rag.py]
     B -->|skill cari-kafe| K[kafe.py]
     B -->|skill minta-hermes| H[hermes_run.py → Hermes]
+    B -->|skill bales-mention / cari-viral| S[sosmed/ → Bluesky]
     C & R --> NR[9router · 127.0.0.1:20128]
     NR --> P[Holver · Groq · Gemini · OpenCode]
     K --> OSM[OpenStreetMap / ruangseduh.cloud API]
-    C & R & K & H -.event.-> KA[Kantor AI · 127.0.0.1:7777]
+    C & R & K & H & S -.event.-> KA[Kantor AI · 127.0.0.1:7777]
 ```
 
 | Folder | Isi |
@@ -20,9 +21,10 @@ flowchart LR
 | [`council/`](council/) | **Dewan AI**: 1 generator, 4 kritikus lintas keluarga model **paralel**, lalu reviser |
 | [`rag/`](rag/) | **RAG** atas tugas, PDF, dan memori Budi. Embedding Gemini, indeks berupa file lokal (tanpa database) |
 | [`kafe/`](kafe/) | **Pencari kafe** terdekat (data OSM), berbagi cache dengan [ruangseduh.cloud](https://ruangseduh.cloud) |
+| [`sosmed/`](sosmed/) | **Bluesky**: cek mention, draf, dan posting/balas **hanya setelah persetujuan pemilik** (dry-run dulu). Ada juga skrip X/Twitter lama |
 | [`kantor-ai/`](kantor-ai/) | **Kantor AI**: denah 2D tempat agen berjalan ke ruangan sesuai tugas, plus panel error live |
 | [`9router/`](9router/) | Skrip menyalakan dan mematikan 9router (gerbang model AI lokal) |
-| [`openclaw/skills/`](openclaw/skills/) | Skill Budi: `dewan`, `cari-dokumen`, `cari-kafe`, `minta-hermes` |
+| [`openclaw/skills/`](openclaw/skills/) | Skill Budi: `dewan`, `cari-dokumen`, `cari-kafe`, `minta-hermes`, `bales-mention`, `cari-viral` |
 | [`docs/`](docs/) | Panduan lengkap 9router, Dewan AI, dan RAG |
 | [`examples/`](examples/) | Contoh transkrip dewan (versi pertama) |
 
@@ -71,7 +73,7 @@ Satu endpoint OpenAI-compatible (`http://127.0.0.1:20128/v1`) untuk semua provid
 
 ## Keamanan dan privasi
 - **Kunci API** hanya dibaca dari `.env` (`HOLVER_API_KEY`, `GROQ_API_KEY`, `NINEROUTER_API_KEY`) dan tidak pernah ditulis di kode.
-- **Tidak ikut di repo:** indeks RAG (berisi teks dokumen pribadi), cache kafe, log event Kantor AI, serta hasil dewan (`wa-*`, `run*`).
+- **Tidak ikut di repo:** indeks RAG (berisi teks dokumen pribadi), cache kafe, log event Kantor AI, hasil dewan (`wa-*`, `run*`), serta draf dan antrean mention Bluesky.
 - Semua layanan lokal hanya mendengarkan di `127.0.0.1`.
 - **Nomor WhatsApp pemilik** di skill diganti `<NOMOR_PEMILIK>`. Isi sendiri saat memasang.
 - **Path di skill** memakai `D:\labs\...` sesuai mesin pengembang. Sesuaikan dengan lokasimu.
