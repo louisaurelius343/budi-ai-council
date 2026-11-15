@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kantor AI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">▦</span> Kantor AI <small>pemantau agen Budi</small></div>
+    <div class="health" id="health" aria-label="Status layanan"></div>
+    <div class="actions">
+      <button type="button" id="demo" class="btn">▶ Simulasi</button>
+      <button type="button" id="clear" class="btn ghost" title="Hapus semua event">Bersihkan</button>
+      <span id="conn" class="conn" title="Koneksi ke server lokal">●</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-label="Denah kantor">
+      <canvas id="office" width="1200" height="760" aria-label="Kantor AI: ruangan dan agen"></canvas>
+      <div id="tooltip" class="tooltip" hidden></div>
+    </section>
+
+    <aside class="side">
+      <section class="card">
+        <h2>Sedang dikerjakan <span id="busyCount" class="count">0</span></h2>
+        <ul id="busy" class="rows"><li class="empty">Semua agen santai di lobi.</li></ul>
+      </section>
+      <section class="card err-card">
+        <h2>Error <span id="errCount" class="count red">0</span></h2>
+        <ul id="errors" class="rows"><li class="empty">Belum ada error. 🎉</li></ul>
+      </section>
+      <section class="card grow">
+        <h2>Aktivitas</h2>
+        <ol id="feed" class="feed"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

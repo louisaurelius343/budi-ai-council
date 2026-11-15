@@ -1,5 +1,14 @@
-﻿.env
+.env
 *.env
 *.key
+*.bak
+*.bak-*
 wa-*/
 run*/
+tes-*/
+# data pribadi / hasil turunan
+rag/index/
+kafe/cache.json
+kantor-ai/events.jsonl
+9router/*.log
+__pycache__/

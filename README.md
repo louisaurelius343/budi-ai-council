@@ -1,74 +1,85 @@
 ﻿# Budi AI Council
 
-Orkestrasi **multi-model**: beberapa LLM dari keluarga berbeda berkolaborasi pada satu tugas. Satu membuat draf, dua mengkritik, satu menyatukan jadi jawaban final. Dipicu dari WhatsApp lewat agent "Budi" (OpenClaw).
-
-Teknik yang dipakai: **LLM-as-judge** dan **Reflexion** (model mengkritik lalu merevisi), diperkuat dengan **panel kritikus lintas-keluarga** untuk diversitas sudut pandang.
-
-## Alur
+Ekosistem kecil di sekitar **Budi**, AI agent pribadi di WhatsApp yang dibangun di atas OpenClaw. Isinya: dewan multi-model, RAG atas dokumen sendiri, pencari kafe, pembungkus Hermes, gerbang model (9router), dan **Kantor AI**, yaitu pemantau visual tempat semua agen terlihat bekerja.
 
 ```mermaid
-flowchart TD
-    T[Tugas] --> G[Generator<br/>gpt-6-luna · Holver]
-    G --> D[Draf]
-    D --> KA[Kritikus A<br/>gpt-6-luna · Holver]
-    D --> KB[Kritikus B<br/>Qwen · Groq]
-    KA --> R[Reviser<br/>gpt-6-luna · Holver]
-    KB --> R
-    R --> F[Jawaban final + transkrip]
+flowchart LR
+    WA[WhatsApp] --> B[Budi · OpenClaw]
+    B -->|skill dewan| C[council.py]
+    B -->|skill cari-dokumen| R[rag.py]
+    B -->|skill cari-kafe| K[kafe.py]
+    B -->|skill minta-hermes| H[hermes_run.py → Hermes]
+    C & R --> NR[9router · 127.0.0.1:20128]
+    NR --> P[Holver · Groq · Gemini · OpenCode]
+    K --> OSM[OpenStreetMap / ruangseduh.cloud API]
+    C & R & K & H -.event.-> KA[Kantor AI · 127.0.0.1:7777]
 ```
 
-## Peran & model
+| Folder | Isi |
+|---|---|
+| [`council/`](council/) | **Dewan AI**: 1 generator, 4 kritikus lintas keluarga model **paralel**, lalu reviser |
+| [`rag/`](rag/) | **RAG** atas tugas, PDF, dan memori Budi. Embedding Gemini, indeks berupa file lokal (tanpa database) |
+| [`kafe/`](kafe/) | **Pencari kafe** terdekat (data OSM), berbagi cache dengan [ruangseduh.cloud](https://ruangseduh.cloud) |
+| [`kantor-ai/`](kantor-ai/) | **Kantor AI**: denah 2D tempat agen berjalan ke ruangan sesuai tugas, plus panel error live |
+| [`9router/`](9router/) | Skrip menyalakan dan mematikan 9router (gerbang model AI lokal) |
+| [`openclaw/skills/`](openclaw/skills/) | Skill Budi: `dewan`, `cari-dokumen`, `cari-kafe`, `minta-hermes` |
+| [`docs/`](docs/) | Panduan lengkap 9router, Dewan AI, dan RAG |
+| [`examples/`](examples/) | Contoh transkrip dewan (versi pertama) |
 
-| Peran | Model | Penyedia |
-|---|---|---|
-| Generator (draf) | gpt-6-luna | Holver (OpenAI-compatible) |
-| Kritikus A | gpt-6-luna | Holver |
-| Kritikus B | qwen/qwen3.8-27b | Groq |
-| Reviser (final) | gpt-6-luna | Holver |
+## Dewan AI (`council/council.py`)
 
-Logika dewan ada **di kode** (`council.py`), bukan obrolan bebas antar-agent. Ini menjaga alur tetap pasti dan biaya terkendali — model hanya mengisi peran.
+| Peran | Model bawaan (lewat 9router) |
+|---|---|
+| Generator dan reviser | `holver/gpt-6-luna` |
+| Kritikus A | `oc/deepseek-v4.1-flash-free` |
+| Kritikus B | `oc/glm-5.3-flash-free` |
+| Kritikus C | `gemini/gemini-3.5-flash-lite` |
+| Kritikus D | `groq/openai/gpt-oss-120b` |
 
-## Kenapa ini berguna (bukti nyata)
+- Kritikus berjalan **paralel**. Satu sidang biasanya selesai dalam 30–60 detik.
+- **Tahan gangguan:** kritikus yang gagal (limit atau model mati) dilewati dan dicatat di `gagal`. Dewan tetap jalan selama minimal satu kritikus berhasil. Kalau 9router mati, generator Holver atau Groq memanggil API langsung.
+- Hasilnya: `final.md` dan `council.json` (draf, kritik per model, final, dan model yang dipakai).
 
-Dalam satu uji (teknik Pomodoro, lihat `examples/contoh-council.json`):
-- **Kritikus A** (self-critique gpt-6-luna) hanya melunakkan klaim dan merapikan — perbaikan halus.
-- **Kritikus B** (Qwen, keluarga berbeda) jauh lebih tajam: menuntut mekanisme psikologis, menyebut *flow state*, dan alternatif konkret.
-
-Qwen menangkap kelemahan yang **tidak terlihat** oleh model saat mengkritik dirinya sendiri. Final menyatukan keduanya dan jelas lebih bernas dari draf. Inilah nilai "dewan dari pikiran yang berbeda".
-
-## Menjalankan
+Kenapa lintas keluarga model? Dalam uji pertama (`examples/contoh-council.json`), kritikus dari keluarga yang sama hanya merapikan draf, sedangkan kritikus dari keluarga berbeda menemukan kelemahan yang tidak terlihat oleh model itu sendiri.
 
 ```bash
-python council/council.py --file tugas.txt --out run1
-# ganti kritikus: --critic groq:openai/gpt-oss-120b
+python council/council.py --file tugas.txt --out hasil
+python council/council.py --file tugas.txt --out hasil --critic 9r:oc/glm-5.3-flash-free,9r:gemini/gemini-3.5-flash-lite
 ```
 
-API key dibaca dari `.env` (`HOLVER_API_KEY`, `GROQ_API_KEY`) — tidak pernah ditulis di kode. Output: `council.json` (transkrip lengkap) + `final.md`.
+## RAG (`rag/rag.py`)
+- Sumber: tugas, PDF hasil kerja, dan memori Budi. Laporan email dan daftar kontak **sengaja dikecualikan**.
+- Teks dipotong sekitar 1200 karakter (tumpang-tindih 200), di-embed dengan `gemini-embedding-001` (3072 dimensi), lalu disimpan sebagai `vectors.npy` + `chunks.json`. Indeks diperbarui bertahap per hash file.
+- Jawaban dari `gpt-6-luna` wajib mencantumkan sumber [n], dan bilang "tidak ditemukan di dokumen" kalau memang tidak ada.
+- Potongan dokumen diperlakukan sebagai **data, bukan instruksi** (pelajaran dari proyek red-team).
 
-## Menambah model
+```bash
+python rag/rag.py index
+python rag/rag.py ask "Apa isi presentasi EcoPoint?"
+```
 
-Penyedia apa pun yang **OpenAI-compatible** bisa dipakai (OpenRouter, DeepSeek, Kimi, Together, …):
+## Kantor AI (`kantor-ai/`)
+Pemantau visual: 7 ruangan (Dewan, Perpustakaan, Lab Riset, Lobi, Kafe, Studio Sosmed, Server) dan 11 karakter agen. Agen berjalan ke ruangan saat dapat tugas, menampilkan "✓ selesai", atau berdenyut merah dengan penyebab error. Status 9router dan Budi Gateway dicek otomatis.
 
-1. Simpan key ke `.env` (mis. `OPENROUTER_API_KEY=...`).
-2. Tambah baris di `PROVIDERS` dalam `council.py`: `"nama": ("<base_url>/v1", "<NAMA_ENV_KEY>")`.
-3. Pakai lewat `--critic <nama>:<id_model>`.
+```bash
+node kantor-ai/server.mjs
+```
+Lalu buka http://127.0.0.1:7777. Detailnya ada di [`kantor-ai/README.md`](kantor-ai/README.md).
 
-## Integrasi Budi
+## 9router
+Satu endpoint OpenAI-compatible (`http://127.0.0.1:20128/v1`) untuk semua provider. Dashboard-nya menyimpan provider dan API key. Lihat [`docs/PANDUAN-9ROUTER-RAG.md`](docs/PANDUAN-9ROUTER-RAG.md).
 
-Skill `openclaw/skills/dewan/SKILL.md` membuat Budi: menulis tugas ke file → menjalankan `council.py` → mengirim final + "catatan dewan" (apa yang ditemukan tiap kritikus) ke WhatsApp. Hanya lewat chat pribadi pemilik, karena memakai kuota beberapa model.
+## Keamanan dan privasi
+- **Kunci API** hanya dibaca dari `.env` (`HOLVER_API_KEY`, `GROQ_API_KEY`, `NINEROUTER_API_KEY`) dan tidak pernah ditulis di kode.
+- **Tidak ikut di repo:** indeks RAG (berisi teks dokumen pribadi), cache kafe, log event Kantor AI, serta hasil dewan (`wa-*`, `run*`).
+- Semua layanan lokal hanya mendengarkan di `127.0.0.1`.
+- **Nomor WhatsApp pemilik** di skill diganti `<NOMOR_PEMILIK>`. Isi sendiri saat memasang.
+- **Path di skill** memakai `D:\labs\...` sesuai mesin pengembang. Sesuaikan dengan lokasimu.
 
-**Catatan penting:** model percakapan Budi sendiri (via login ChatGPT/codex) **tidak ikut** berdeliberasi. Budi hanya pemicu dan pelapor; dewan sepenuhnya dijalankan oleh Holver + Groq.
+## Riwayat
+1. **v1:** dewan 2 kritikus (Holver + Groq), lihat `examples/`.
+2. **v2:** 4 kritikus paralel lewat 9router, RAG, cari-kafe, dan Kantor AI.
 
-## Keterbatasan (jujur)
-
-- Satu run = 4 panggilan model → lebih lambat & boros kuota. Berguna untuk tugas berkualitas tinggi, bukan pertanyaan sepele.
-- Holver hanya mengekspos satu model (gpt-6-luna), jadi generator + kritikus A + reviser adalah otak yang sama. **Diversitas sejati datang dari Qwen (Groq).** Menambah penyedia lain akan memperkaya dewan.
-- Kritik otomatis bisa keliru; reviser diminta mengabaikan masukan yang tidak valid, tapi tetap perlu penilaian manusia untuk tugas penting.
-
-## Yang saya pelajari
-
-- Orkestrasi multi-model & pola LLM-as-judge / Reflexion
-- Memanggil beberapa API OpenAI-compatible dari satu orkestrator
-- Nilai diversitas model: kritikus lintas-keluarga menangkap hal yang terlewat oleh self-critique
-- Menaruh logika kontrol di kode agar biaya & alur terkendali
-- Mengintegrasikan pipeline ke agent WhatsApp dengan batas akses
+Proyek terkait:
+- [budi-security-lab](https://github.com/louisaurelius343/budi-security-lab) (red-team terhadap Budi)
+- [ruang-seduh](https://github.com/louisaurelius343/ruang-seduh) (pencari kafe publik)
