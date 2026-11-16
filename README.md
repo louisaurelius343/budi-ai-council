@@ -9,7 +9,7 @@ flowchart LR
     B -->|skill cari-dokumen| R[rag.py]
     B -->|skill cari-kafe| K[kafe.py]
     B -->|skill minta-hermes| H[hermes_run.py → Hermes]
-    B -->|skill bales-mention / cari-viral| S[sosmed/ → Bluesky]
+    B -->|skill sosmed| S[budi-sosmed → Bluesky & Instagram]
     C & R --> NR[9router · 127.0.0.1:20128]
     NR --> P[Holver · Groq · Gemini · OpenCode]
     K --> OSM[OpenStreetMap / ruangseduh.cloud API]
@@ -21,10 +21,10 @@ flowchart LR
 | [`council/`](council/) | **Dewan AI**: 1 generator, 4 kritikus lintas keluarga model **paralel**, lalu reviser |
 | [`rag/`](rag/) | **RAG** atas tugas, PDF, dan memori Budi. Embedding Gemini, indeks berupa file lokal (tanpa database) |
 | [`kafe/`](kafe/) | **Pencari kafe** terdekat (data OSM), berbagi cache dengan [ruangseduh.cloud](https://ruangseduh.cloud) |
-| [`sosmed/`](sosmed/) | **Bluesky**: cek mention, draf, dan posting/balas **hanya setelah persetujuan pemilik** (dry-run dulu). Ada juga skrip X/Twitter lama |
+| [budi-sosmed](https://github.com/louisaurelius343/budi-sosmed) | **Media sosial** (repo terpisah): Bluesky, Instagram (foto, Reels, komentar), perakit Reel, dan klip AI. Semua publikasi menunggu persetujuan pemilik |
 | [`kantor-ai/`](kantor-ai/) | **Kantor AI**: denah 2D tempat agen berjalan ke ruangan sesuai tugas, plus panel error live |
 | [`9router/`](9router/) | Skrip menyalakan dan mematikan 9router (gerbang model AI lokal) |
-| [`openclaw/skills/`](openclaw/skills/) | Skill Budi: `dewan`, `cari-dokumen`, `cari-kafe`, `minta-hermes`, `bales-mention`, `cari-viral` |
+| [`openclaw/skills/`](openclaw/skills/) | Skill Budi: `dewan`, `cari-dokumen`, `cari-kafe`, `minta-hermes` |
 | [`docs/`](docs/) | Panduan lengkap 9router, Dewan AI, dan RAG |
 | [`examples/`](examples/) | Contoh transkrip dewan (versi pertama) |
 
@@ -73,7 +73,7 @@ Satu endpoint OpenAI-compatible (`http://127.0.0.1:20128/v1`) untuk semua provid
 
 ## Keamanan dan privasi
 - **Kunci API** hanya dibaca dari `.env` (`HOLVER_API_KEY`, `GROQ_API_KEY`, `NINEROUTER_API_KEY`) dan tidak pernah ditulis di kode.
-- **Tidak ikut di repo:** indeks RAG (berisi teks dokumen pribadi), cache kafe, log event Kantor AI, hasil dewan (`wa-*`, `run*`), serta draf dan antrean mention Bluesky.
+- **Tidak ikut di repo:** indeks RAG (berisi teks dokumen pribadi), cache kafe, log event Kantor AI, serta hasil dewan (`wa-*`, `run*`).
 - Semua layanan lokal hanya mendengarkan di `127.0.0.1`.
 - **Nomor WhatsApp pemilik** di skill diganti `<NOMOR_PEMILIK>`. Isi sendiri saat memasang.
 - **Path di skill** memakai `D:\labs\...` sesuai mesin pengembang. Sesuaikan dengan lokasimu.
@@ -85,3 +85,4 @@ Satu endpoint OpenAI-compatible (`http://127.0.0.1:20128/v1`) untuk semua provid
 Proyek terkait:
 - [budi-security-lab](https://github.com/louisaurelius343/budi-security-lab) (red-team terhadap Budi)
 - [ruang-seduh](https://github.com/louisaurelius343/ruang-seduh) (pencari kafe publik)
+- [budi-sosmed](https://github.com/louisaurelius343/budi-sosmed) (Bluesky, Instagram, dan video Reel)
