@@ -23,6 +23,7 @@ flowchart LR
 | [`kafe/`](kafe/) | **Pencari kafe** terdekat (data OSM), berbagi cache dengan [ruangseduh.cloud](https://ruangseduh.cloud) |
 | [budi-sosmed](https://github.com/louisaurelius343/budi-sosmed) | **Media sosial** (repo terpisah): Bluesky, Instagram (foto, Reels, komentar), perakit Reel, dan klip AI. Semua publikasi menunggu persetujuan pemilik |
 | [`kantor-ai/`](kantor-ai/) | **Kantor AI**: denah 2D tempat agen berjalan ke ruangan sesuai tugas, plus panel error live |
+| [`ruang-rapat/`](ruang-rapat/) | **Ruang Rapat Dewan**: ruang 3D tempat Louis berdebat langsung dengan beberapa model AI, bersuara, bisa disela lewat chat atau mikrofon |
 | [`9router/`](9router/) | Skrip menyalakan dan mematikan 9router (gerbang model AI lokal) |
 | [`openclaw/skills/`](openclaw/skills/) | Skill Budi: `dewan`, `cari-dokumen`, `cari-kafe`, `minta-hermes` |
 | [`docs/`](docs/) | Panduan lengkap 9router, Dewan AI, dan RAG |
@@ -68,6 +69,13 @@ node kantor-ai/server.mjs
 ```
 Lalu buka http://127.0.0.1:7777. Detailnya ada di [`kantor-ai/README.md`](kantor-ai/README.md).
 
+## Ruang Rapat Dewan (`ruang-rapat/`)
+Ruang rapat 3D: Moderator dan empat anggota dari keluarga model berbeda berdebat bebas, setiap ucapan dibacakan dengan suara masing-masing (edge-tts), dan Louis bisa menyela lewat chat atau tahan-untuk-bicara. Bisa melampirkan file/folder sebagai bahan rapat.
+```
+ruang-rapat\start-rapat.cmd
+```
+Lalu buka http://127.0.0.1:7788. Detailnya ada di [`ruang-rapat/README.md`](ruang-rapat/README.md).
+
 ## 9router
 Satu endpoint OpenAI-compatible (`http://127.0.0.1:20128/v1`) untuk semua provider. Dashboard-nya menyimpan provider dan API key. Lihat [`docs/PANDUAN-9ROUTER-RAG.md`](docs/PANDUAN-9ROUTER-RAG.md).
 
@@ -81,6 +89,7 @@ Satu endpoint OpenAI-compatible (`http://127.0.0.1:20128/v1`) untuk semua provid
 ## Riwayat
 1. **v1:** dewan 2 kritikus (Holver + Groq), lihat `examples/`.
 2. **v2:** 4 kritikus paralel lewat 9router, RAG, cari-kafe, dan Kantor AI.
+3. **Ruang Rapat Dewan:** debat langsung di ruang 3D dengan suara, selaan, lampiran, dan input mikrofon.
 
 Proyek terkait:
 - [budi-security-lab](https://github.com/louisaurelius343/budi-security-lab) (red-team terhadap Budi)

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ruang Rapat Dewan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">⚖</span> Ruang Rapat Dewan</div>
+    <div class="aksi">
+      <button type="button" id="buka-laci" class="btn">⚙ Anggota &amp; lampiran <span id="jml-dok-atas" class="jml"></span></button>
+      <label class="btn saklar"><input type="checkbox" id="saklar-suara" checked> 🔊 Suara</label>
+      <button type="button" id="lanjut" class="btn" disabled>+ Satu ronde lagi</button>
+      <button type="button" id="selesai" class="btn utama" disabled>Selesaikan rapat</button>
+      <span id="conn" class="conn" title="Koneksi ke server lokal">●</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panggung" aria-label="Ruang rapat 3D">
+      <div id="ruang3d" class="ruang3d"></div>
+      <div id="subtitle" class="subtitle" hidden><b id="sub-nama"></b><span id="sub-teks"></span></div>
+      <p id="status" class="status-3d" aria-live="polite"></p>
+      <p id="mendengar" class="mendengar" hidden>🎤 Mendengarkan… <span id="teks-dengar"></span></p>
+      <p class="petunjuk-3d">Seret untuk melihat sekeliling</p>
+      <button type="button" id="aktifkan-suara" class="aktifkan-suara" hidden>🔊 Klik untuk mengaktifkan suara</button>
+    </section>
+
+    <section class="chat" id="area-chat" aria-label="Percakapan rapat">
+      <div id="lapisan-seret" class="lapisan-seret" hidden>Lepaskan untuk melampirkan ke rapat</div>
+      <ol id="log" class="log"></ol>
+
+      <form id="form-mulai" class="input">
+        <textarea id="topik" rows="3" placeholder="Tulis masalah yang ingin dibahas dewan…" required></textarea>
+        <div class="baris">
+          <label>Ronde <select id="ronde"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <button type="button" class="btn mik" data-sasaran="topik" title="Tahan untuk mendiktekan topik">🎤</button>
+          <button type="submit" class="btn utama">Mulai rapat</button>
+        </div>
+      </form>
+
+      <form id="form-pesan" class="input" hidden>
+        <textarea id="pesan" rows="2" placeholder="Menyela atau menambahkan sesuatu… (Enter kirim, Shift+Enter baris baru)"></textarea>
+        <div class="baris">
+          <span id="info-arsip" class="kecil"></span>
+          <button type="button" class="btn mik" data-sasaran="pesan" title="Tahan untuk bicara (atau tahan Spasi)">🎤 Tahan untuk bicara</button>
+          <button type="submit" class="btn utama">Kirim</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <aside id="laci" class="laci" hidden aria-label="Anggota dan lampiran">
+    <div class="laci-kepala"><b>Anggota &amp; lampiran</b><button type="button" id="tutup-laci" class="btn hantu" aria-label="Tutup">✕</button></div>
+    <div id="kursi" class="kursi"></div>
+    <p class="petunjuk">Peran kosong = bebas berpendapat. Perubahan model, suara, dan peran berlaku mulai giliran berikutnya.</p>
+
+    <section class="lampiran" aria-label="Lampiran">
+      <h2>Lampiran <span id="jml-dok" class="jml">0</span></h2>
+      <div class="tombol-unggah">
+        <label class="btn kecil-btn">📄 File<input type="file" id="pilih-file" multiple hidden></label>
+        <label class="btn kecil-btn">📁 Folder<input type="file" id="pilih-folder" webkitdirectory multiple hidden></label>
+        <button type="button" id="hapus-semua" class="btn kecil-btn hantu">Hapus semua</button>
+      </div>
+      <ul id="daftar-dok" class="daftar-dok"></ul>
+      <label class="centang"><input type="checkbox" id="tepercaya"> Hanya model tepercaya
+        <span class="kecil">(isi dokumen hanya untuk Moderator/Holver; model gratis tidak melihatnya)</span></label>
+      <p id="info-unggah" class="kecil" aria-live="polite">PDF, Word, teks, Markdown, kode, CSV/JSON. Maks 10 MB per file. Bisa juga seret ke kolom chat.</p>
+    </section>
+  </aside>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
