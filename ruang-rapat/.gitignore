@@ -2,3 +2,5 @@ rapat/
 anggota.json
 suara/
 contoh-suara/
+public/logo/*
+!public/logo/.gitkeep

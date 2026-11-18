@@ -49,7 +49,7 @@ Anggota yang gagal menjawab (limit, model mati) dilewati, dan penyebabnya tampil
 - Panggung 3D (Three.js, disertakan lokal di `public/vendor/`): meja oval, Moderator di ujung, anggota duduk di seberang Louis.
 - Setiap ucapan dibacakan dengan edge-tts; suara per anggota bisa dipilih di laci "Anggota & lampiran". File audio sementara ada di `suara/` dan dihapus saat rapat baru dimulai.
 - Saat audio diputar: subtitle muncul, avatar pembicara menyala, mulutnya bergerak mengikuti volume, dan kamera menoleh ke arahnya. Pesan di kolom chat muncul bersamaan dengan suaranya.
-- Saklar "Suara" mematikan audio; teks tetap tampil berurutan dengan jeda baca.
+- Audio rapat selalu dibacakan; atur volume atau mute lewat perangkat bila perlu.
 - Contoh suara untuk dipilih ada di `contoh-suara/`.
 
 ## Louis bicara (tahap 4)
@@ -58,6 +58,21 @@ Anggota yang gagal menjawab (limit, model mati) dilewati, dan penyebabnya tampil
 - Saat Louis bicara, suara anggota yang sedang berbicara dikecilkan.
 - Memakai pengenal suara bawaan browser (Chrome/Edge, bahasa id-ID). Butuh internet, dan audionya diproses oleh layanan pengenal suara browser (Google untuk Chrome, Microsoft untuk Edge). Kalau ingin sepenuhnya lokal, bisa diganti Whisper nanti.
 - Ucapan seperti "stop", "cukup", atau "akhiri rapat" menghentikan rapat dan meminta kesimpulan.
+
+## Riset web (Tavily)
+
+- Saat topik ditetapkan, diganti, atau fokusnya dipersempit, Moderator menyusun 3 kata kunci dan server mencarinya lewat Tavily. Sumber yang ditemukan diberi kode S1, S2, ... dan tampil di chat sebagai tautan.
+- Isi sumber dipotong seperti lampiran; tiap anggota mendapat potongan paling relevan (maks. 2 per sumber) dan diminta menyebut kodenya, mis. "menurut S2". Kalau datanya tidak ada, anggota harus bilang belum ada datanya.
+- Anggota boleh meminta pencarian tambahan dengan menulis `[CARI: kata kunci]` di akhir jawabannya (maks. 6 per rapat). Hasilnya tersedia untuk anggota berikutnya.
+- Kesimpulan rapat merujuk kode sumber, dan arsip `rapat/*.md` memuat daftar sumber beserta URL-nya.
+- Butuh `TAVILY_API_KEY` di `.env` yang sama dengan kunci 9router. Tanpa kunci itu, rapat tetap berjalan tanpa riset.
+- Kata kunci pencarian dikirim ke Tavily. Isi halaman web diperlakukan sebagai data, bukan instruksi.
+
+## Tampilan ruangan
+
+- Ruangan 3D: jendela kota senja diapit pilar batu, dinding panel kayu, rak buku, plafon berkaset dengan lampu gantung cincin, meja walnut bertepi kuningan, kursi eksekutif dengan aksen warna merek tiap model.
+- Tiap kursi diberi lencana logo keluarga model (Gemini, DeepSeek, GPT, Claude, Qwen, Llama, GLM, dll.). Logonya digambar sendiri sebagai pengganti.
+- **Logo resmi (opsional):** taruh file di `public/logo/<keluarga>.svg` (atau `.png`/`.webp`), misalnya `gemini.svg`, `deepseek.png`, `gpt.svg`, `agnes.png`. Nama keluarga yang dikenali: gemini, deepseek, gpt, claude, mistral, qwen, llama, grok, glm, agnes, kiro. Logo itu otomatis dipakai menggantikan logo gambar sendiri. File logo tidak disertakan di repo; ambil sendiri dari situs resmi masing-masing dan perhatikan ketentuan mereknya.
 
 ## Keamanan dan privasi
 - Server hanya mendengarkan di `127.0.0.1`. POST wajib berformat JSON dari halaman ini sendiri, dan CSP tidak mengizinkan skrip inline.

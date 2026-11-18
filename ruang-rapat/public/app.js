@@ -70,6 +70,21 @@ function gambarKursi() {
   perbaruiAvatar();
 }
 
+// Saran datalist hanya menampilkan yang cocok dengan isi kolom. Saat kolom model diklik, isinya dikosongkan sementara
+// (nilai lama jadi placeholder) supaya semua model 9router terlihat; kalau tidak memilih apa pun, nilai lama dikembalikan.
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el.matches?.('input[data-model]')) return;
+  el.dataset.lama = el.value;
+  el.placeholder = el.value;
+  el.value = '';
+});
+document.addEventListener('focusout', (e) => {
+  const el = e.target;
+  if (!el.matches?.('input[data-model]')) return;
+  if (!el.value.trim()) el.value = el.dataset.lama || '';
+});
+
 // daftar model dari 9router untuk kolom pilihan model
 fetch('/api/model').then((r) => r.json()).then((d) => {
   const dl = document.createElement('datalist');
@@ -98,16 +113,38 @@ $('#kursi').addEventListener('change', async (e) => {
 });
 
 // ---------- kolom chat ----------
+const amanUrl = (u) => typeof u === 'string' && /^https?:\/\//i.test(u);
+function tautanSumber(x) {
+  const el = document.createElement(amanUrl(x.url) ? 'a' : 'span');
+  if (amanUrl(x.url)) { el.href = x.url; el.target = '_blank'; el.rel = 'noopener noreferrer'; }
+  el.title = `${x.cuplik || ''}…`;
+  el.textContent = `🌐 ${x.file}`;
+  return el;
+}
 function tambahLog(m) {
   const li = document.createElement('li');
   if (m.tipe === 'info') {
     li.className = 'info'; li.textContent = m.teks;
+  } else if (m.tipe === 'riset') {
+    // Hasil pencarian web: daftar sumber yang kini bisa dipakai semua anggota.
+    li.className = 'riset';
+    const kepala = document.createElement('div');
+    kepala.textContent = `🔎 ${m.teks}`;
+    li.append(kepala);
+    if (m.sumber?.length) {
+      const daftar = document.createElement('div');
+      daftar.className = 'sumber';
+      for (const x of m.sumber) daftar.append(tautanSumber(x));
+      li.append(daftar);
+    }
   } else if (m.tipe === 'error') {
     li.className = 'error'; li.textContent = `⚠ ${m.nama} tidak bisa menjawab (${m.teks}). Dilewati.`;
   } else {
     const louis = m.id === 'louis';
     li.className = `pesan${louis ? ' louis' : ''}${m.tipe === 'kesimpulan' ? ' kesimpulan' : ''}`;
-    const sumber = (m.sumber || []).map((s) => `<span title="${esc(s.cuplik)}…">📎 ${esc(s.file)} #${s.n}</span>`).join('');
+    const sumber = (m.sumber || []).map((s) => (amanUrl(s.url)
+      ? `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.cuplik)}…">🌐 ${esc(s.file)}</a>`
+      : `<span title="${esc(s.cuplik)}…">📎 ${esc(s.file)} #${s.n}</span>`)).join('');
     li.innerHTML = `<div class="avatar">${esc(inisial(m.nama))}</div>
       <div><div class="kepala"><b>${esc(m.tipe === 'kesimpulan' ? 'Kesimpulan rapat' : m.nama)}</b>${esc(jam(m.ts))}${m.detik ? ` · ${m.detik.toFixed(0)} dtk` : ''}</div>
       <div class="isi">${esc(m.teks)}</div>${sumber ? `<div class="sumber" title="Potongan dokumen yang diberikan kepada pembicara ini">${sumber}</div>` : ''}</div>`;
@@ -119,7 +156,6 @@ function tambahLog(m) {
 }
 
 // ---------- pemutar suara: ucapan tampil saat suaranya mulai, berurutan ----------
-let suaraOn = $('#saklar-suara').checked;
 let audioCtx = null;
 let analyser = null;
 let dataAmp = null;
@@ -174,9 +210,9 @@ const tunggu = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let audioSekarang = null;
 
-// Memutar satu klip. Selalu selesai: saat audio berakhir, gagal, macet, suara dimatikan, atau batas waktu habis.
+// Memutar satu klip. Selalu selesai saat audio berakhir, gagal, atau melewati batas waktu.
 async function putarSatu(item) {
-  // Pastikan konteks audio benar-benar jalan; kalau tidak, putar biasa tanpa analisis (mulut tetap bergerak pelan).
+  // Pastikan konteks audio benar-benar jalan; kalau tidak, putar biasa tanpa analisis suara.
   let pakaiAnalisis = false;
   if (audioCtx) {
     if (audioCtx.state !== 'running') await Promise.race([audioCtx.resume().catch(() => {}), tunggu(1500)]);
@@ -186,26 +222,17 @@ async function putarSatu(item) {
     let beres = false;
     const a = new Audio(item.url);
     audioSekarang = a;
-    const akhiri = () => {
+    let jaga = setTimeout(akhiri, 60000);
+    const mulai = Date.now();
+    function akhiri() {
       if (beres) return;
       beres = true;
-      clearTimeout(jaga); clearInterval(cek);
+      clearTimeout(jaga);
       try { a.pause(); } catch { /* abaikan */ }
       audioSekarang = null;
       selesai();
-    };
-    // Batas waktu: durasi klip + 3 dtk, atau 60 dtk kalau durasi belum diketahui.
-    let jaga = setTimeout(akhiri, 60000);
+    }
     a.onloadedmetadata = () => { if (isFinite(a.duration)) { clearTimeout(jaga); jaga = setTimeout(akhiri, (a.duration + 3) * 1000); } };
-    // Suara dimatikan di tengah ucapan: bisukan saja, subtitle tetap tampil sampai sisa waktu bacanya habis.
-    const mulai = Date.now();
-    const waktuBaca = Math.min(9000, 1200 + item.m.teks.split(/\s+/).length * 280);
-    const cek = setInterval(() => {
-      if (suaraOn || a.muted) return;
-      a.muted = true;
-      clearTimeout(jaga);
-      jaga = setTimeout(akhiri, Math.max(0, waktuBaca - (Date.now() - mulai)));
-    }, 200);
     a.onended = a.onerror = akhiri;
     if (pakaiAnalisis) {
       try { audioCtx.createMediaElementSource(a).connect(analyser); } catch { /* tetap diputar tanpa analisis */ }
@@ -220,21 +247,30 @@ async function putarAntrean() {
   while (antrean.length) {
     const item = antrean[0];
     if (item.info) { antrean.shift(); tambahLog(item.m); continue; } // info/error: tampil tanpa subtitle
-    const batas = Date.now() + 30000;
-    while (suaraOn && !item.url && !item.gagal && !item.ditarik && Date.now() < batas) await tunggu(200);
+    if (item.ditarik) { antrean.shift(); continue; }
+    if (!item.ditampilkan) {
+      tambahLog(item.m);
+      post('/api/diputar', { nomor: item.m.nomor }, true); // server boleh menyiapkan giliran berikutnya
+      ruang?.setPembicara(item.m.id);
+      tampilkanSubtitle(item.m);
+      item.ditampilkan = true;
+      tampilkanStatus();
+    }
+    if (item.m.suaraMenyusul) {
+      const batas = Date.now() + 30000;
+      while (!item.url && !item.gagal && !item.ditarik && Date.now() < batas) await tunggu(150);
+      if (item.ditarik) { antrean.shift(); continue; }
+      if (item.url && !item.gagal) {
+        await putarSatu(item);
+        await tunggu(250);
+      } else {
+        await tunggu(Math.min(9000, 1200 + item.m.teks.split(/\s+/).length * 280));
+      }
+    } else {
+      await tunggu(Math.min(9000, 1200 + item.m.teks.split(/\s+/).length * 280));
+    }
     antrean.shift();
     if (item.ditarik) continue;
-    tambahLog(item.m);
-    post('/api/diputar', { nomor: item.m.nomor }, true); // server baru menyusun giliran berikutnya setelah ini
-    ruang?.setPembicara(item.m.id);
-    tampilkanSubtitle(item.m);
-    tampilkanStatus();
-    if (suaraOn && item.url) {
-      await putarSatu(item);
-      await tunggu(250);
-    } else {
-      await tunggu(Math.min(9000, 1200 + item.m.teks.split(/\s+/).length * 280)); // waktu baca tanpa suara
-    }
     sembunyikanSubtitle();
   }
   memutar = false;
@@ -252,12 +288,6 @@ function terimaLog(m) {
     tambahLog(m);
   }
 }
-
-$('#saklar-suara').addEventListener('change', (e) => {
-  suaraOn = e.target.checked;
-  if (suaraOn) siapkanAudio();
-  post('/api/suara', { aktif: suaraOn }, true);
-});
 
 function aturTombol() {
   $('#form-mulai').hidden = aktif && !selesai;
@@ -299,7 +329,6 @@ function gambarDokumen(s) {
     <span class="nama">${esc(d.nama)}</span><span class="kecil">${d.bagian}</span>
     <button type="button" data-hapus="${esc(d.id)}" aria-label="Hapus ${esc(d.nama)}">×</button></li>`).join('');
   $('#tepercaya').checked = Boolean(s.hanyaTepercaya);
-  if ('suaraAktif' in s) { suaraOn = s.suaraAktif; $('#saklar-suara').checked = suaraOn; }
   if (s.daftarSuara && !daftarSuara.length) { daftarSuara = s.daftarSuara; gambarKursi(); }
 }
 
