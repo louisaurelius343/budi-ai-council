@@ -37,6 +37,19 @@ function gelembungPikir() {
   return t;
 }
 
+function gelembungTangan() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(255,250,242,0.96)';
+  g.beginPath(); g.arc(64, 64, 56, 0, Math.PI * 2); g.fill();
+  g.font = '68px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('✋', 64, 70);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function infoLogo(a) {
   const model = `${a.model || ''} ${a.keluarga || ''}`.toLowerCase();
   if (/gemini|gemma/.test(model)) return { kunci: 'gemini', nama: 'Gemini', warna: '#4f7cff' };
@@ -419,29 +432,59 @@ export class Ruang3D {
     label.scale.set(0.95, 0.3, 1); label.position.set(0, 2.19, 0); label.renderOrder = 10; grup.add(label);
     const pikir = new THREE.Sprite(new THREE.SpriteMaterial({ map: gelembungPikir(), depthTest: false, transparent: true, opacity: 0 }));
     pikir.scale.set(0.42, 0.21, 1); pikir.position.set(0.34, 2.1, 0); pikir.renderOrder = 11; grup.add(pikir);
+    const tangan = new THREE.Sprite(new THREE.SpriteMaterial({ map: gelembungTangan(), depthTest: false, transparent: true, opacity: 0 }));
+    tangan.scale.set(0.3, 0.3, 1); tangan.position.set(-0.42, 2.1, 0); tangan.renderOrder = 11; grup.add(tangan);
     const lampu = new THREE.PointLight(logo.warna, 0, 2.6, 1.5);
     lampu.position.set(0, 1.62, 0.38); grup.add(lampu);
 
     this.scene.add(grup);
     const posLogo = new THREE.Vector3(0, 1.62, 0.12);
     grup.localToWorld(posLogo);
-    this.avatar.set(a.id, { grup, lencana, lampu, cincin, pikir, posKepala: posLogo, fase: Math.random() * 6 });
+    this.avatar.set(a.id, { grup, lencana, lampu, cincin, pikir, tangan, posKepala: posLogo, fase: Math.random() * 6 });
   }
 
+  setTangan(ids) { this.tangan = new Set(ids); }
   setPembicara(id) { this.pembicara = id; }
   setBerpikir(id) { this.berpikir = id; }
   setLevel(v) { this.level = v; }
 
   pasangKontrol() {
     const el = this.renderer.domElement;
-    el.addEventListener('pointerdown', (e) => { this.lihat.seret = true; this.lihat.x = e.clientX; this.lihat.y = e.clientY; el.setPointerCapture(e.pointerId); });
-    el.addEventListener('pointerup', () => { this.lihat.seret = false; });
+    el.addEventListener('pointerdown', (e) => {
+      this.lihat.seret = true; this.lihat.x = e.clientX; this.lihat.y = e.clientY;
+      this.awalKlik = { x: e.clientX, y: e.clientY };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointerup', (e) => {
+      this.lihat.seret = false;
+      // klik (bukan seret) pada lencana anggota = menunjuk dia untuk bicara
+      const a = this.awalKlik;
+      if (a && Math.hypot(e.clientX - a.x, e.clientY - a.y) < 6) {
+        const id = this.anggotaDi(e.clientX, e.clientY);
+        if (id) this.onKlik?.(id);
+      }
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (this.lihat.seret) return;
+      el.style.cursor = this.anggotaDi(e.clientX, e.clientY) ? 'pointer' : '';
+    });
     el.addEventListener('pointermove', (e) => {
       if (!this.lihat.seret) return;
       this.lihat.yaw = Math.max(-1.1, Math.min(1.1, this.lihat.yaw - (e.clientX - this.lihat.x) * 0.004));
       this.lihat.pitch = Math.max(-0.4, Math.min(0.35, this.lihat.pitch - (e.clientY - this.lihat.y) * 0.003));
       this.lihat.x = e.clientX; this.lihat.y = e.clientY;
     });
+  }
+
+  /** id anggota yang lencananya ada di titik layar ini, atau null. */
+  anggotaDi(x, y) {
+    const kotakEl = this.renderer.domElement.getBoundingClientRect();
+    const titik = new THREE.Vector2(((x - kotakEl.left) / kotakEl.width) * 2 - 1, -((y - kotakEl.top) / kotakEl.height) * 2 + 1);
+    this.raycaster ||= new THREE.Raycaster();
+    this.raycaster.setFromCamera(titik, this.camera);
+    const peta = new Map([...this.avatar].map(([id, a]) => [a.lencana, id]));
+    const kena = this.raycaster.intersectObjects([...peta.keys()], false)[0];
+    return kena ? peta.get(kena.object) : null;
   }
 
   ukur() {
@@ -481,6 +524,10 @@ export class Ruang3D {
       a.cincin.scale.setScalar(pulse);
       a.pikir.material.opacity += ((pikir ? 1 : 0) - a.pikir.material.opacity) * 0.1;
       a.pikir.position.y = 2.06 + Math.sin(t * 2.5) * 0.03;
+      // tangan terangkat: ingin bicara (disembunyikan saat dia sendiri sedang bicara)
+      const angkat = this.tangan?.has(id) && !bicara;
+      a.tangan.material.opacity += ((angkat ? 1 : 0) - a.tangan.material.opacity) * 0.12;
+      a.tangan.position.y = 2.1 + (angkat ? Math.abs(Math.sin(t * 3 + a.fase)) * 0.05 : 0);
     }
     // lampu mikrofon di tengah meja menyala saat ada yang bicara
     this.lampuMik.material.opacity += ((this.pembicara ? 0.35 + Math.min(1, this.level * 3) * 0.65 : 0.25) - this.lampuMik.material.opacity) * 0.15;

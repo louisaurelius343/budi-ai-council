@@ -74,6 +74,15 @@ Anggota yang gagal menjawab (limit, model mati) dilewati, dan penyebabnya tampil
 - Tiap kursi diberi lencana logo keluarga model (Gemini, DeepSeek, GPT, Claude, Qwen, Llama, GLM, dll.). Logonya digambar sendiri sebagai pengganti.
 - **Logo resmi (opsional):** taruh file di `public/logo/<keluarga>.svg` (atau `.png`/`.webp`), misalnya `gemini.svg`, `deepseek.png`, `gpt.svg`, `agnes.png`. Nama keluarga yang dikenali: gemini, deepseek, gpt, claude, mistral, qwen, llama, grok, glm, agnes, kiro. Logo itu otomatis dipakai menggantikan logo gambar sendiri. File logo tidak disertakan di repo; ambil sendiri dari situs resmi masing-masing dan perhatikan ketentuan mereknya.
 
+## Giliran alami dan peran dewan
+
+- Tidak ada urutan bicara tetap. Sebelum tiap giliran, semua anggota ditanya (paralel, singkat) seberapa ingin mereka bicara (0–3) dan apa yang ingin disampaikan. Yang paling mendesak mendapat giliran; namanya disebut menaikkan prioritas, baru saja bicara atau sudah sering bicara menurunkannya. Kalau tidak ada yang mau bicara, ronde selesai lebih cepat dan Moderator merangkum.
+- Anggota yang ingin bicara tampak mengangkat tangan ✋ di ruangan 3D.
+- **Louis yang menunjuk (bawaan):** setelah pembicara selesai didengar, bilah "✋ Ingin bicara" muncul. Tunjuk dengan mengklik nama di bilah itu, mengklik lencana anggota di ruangan 3D, atau mengucapkan/mengetik "silakan Dipa" / "Gita, silakan". Menunjuk saat orang lain masih bicara membuat yang ditunjuk bicara berikutnya.
+- **Moderator mengambil alih** kalau Louis diam 20 detik (atur lewat `BATAS_PILIH_MS`), kalau Louis bilang "moderator ambil alih", atau lewat tombol 👑/🎙 di pojok panggung. Ambil kembali dengan "saya yang pimpin", tombol yang sama, atau langsung menunjuk seseorang.
+- Kalau model seorang anggota tidak bisa dihubungi, transkrip menampilkan peringatan sekali per rapat supaya modelnya bisa diganti.
+- **Peran dewan:** isi di form awal (ada pilihan siap pakai, mis. penguji/reviewer, investor skeptis, red team) atau ucapkan saat rapat, mis. "kalian semua jadi penguji skripsi". Peran khusus per anggota tetap bisa diatur di laci Anggota.
+
 ## Keamanan dan privasi
 - Server hanya mendengarkan di `127.0.0.1`. POST wajib berformat JSON dari halaman ini sendiri, dan CSP tidak mengizinkan skrip inline.
 - **Isi topik dan pesan dikirim ke semua penyedia model anggota**, termasuk model gratis OpenCode. Jangan membahas data yang sangat pribadi.

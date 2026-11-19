@@ -121,21 +121,57 @@ function tautanSumber(x) {
   el.textContent = `🌐 ${x.file}`;
   return el;
 }
+const sumberTerlihat = new Set();
+function tambahSumberPanel(daftar) {
+  const ol = $('#daftar-sumber');
+  ol.querySelector('.kosong')?.remove();
+  for (const x of daftar || []) {
+    if (sumberTerlihat.has(x.file)) continue;
+    sumberTerlihat.add(x.file);
+    const [kode, ...judul] = String(x.file).split(' ');
+    const li = document.createElement('li');
+    const k = document.createElement('span'); k.className = 'kode'; k.textContent = kode;
+    const isi = document.createElement('div');
+    const a = document.createElement(amanUrl(x.url) ? 'a' : 'span');
+    if (amanUrl(x.url)) { a.href = x.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    a.textContent = judul.join(' ') || kode;
+    a.title = `${x.cuplik || ''}…`;
+    const d = document.createElement('span'); d.className = 'domain';
+    try { d.textContent = new URL(x.url).hostname.replace(/^www\./, ''); } catch { d.textContent = ''; }
+    isi.append(a, d); li.append(k, isi); ol.append(li);
+  }
+  $('#jml-sumber').textContent = sumberTerlihat.size;
+}
+function kosongkanSumber() {
+  sumberTerlihat.clear();
+  $('#daftar-sumber').innerHTML = '<li class="kosong">Belum ada sumber. Sumber web dicari otomatis saat rapat dimulai atau topik berganti.</li>';
+  $('#jml-sumber').textContent = '0';
+}
+
 function tambahLog(m) {
   const li = document.createElement('li');
+  if (m.nomor) li.dataset.nomor = m.nomor;
   if (m.tipe === 'info') {
-    li.className = 'info'; li.textContent = m.teks;
+    const ronde = /^Ronde (\d+)/.exec(m.teks);
+    li.className = ronde ? 'info' : 'info panjang';
+    li.textContent = m.teks;
+    if (ronde) setRonde(Number(ronde[1]));
+    const topikBaru = /^Topik diganti: (.+)/.exec(m.teks) || /^Fokus pembahasan diperbarui: (.+)/.exec(m.teks);
+    if (topikBaru) setJudul(topikBaru[1]);
+    const peranBaru = /^Peran semua anggota: (.+)/.exec(m.teks);
+    if (peranBaru) setPeran(peranBaru[1]);
   } else if (m.tipe === 'riset') {
-    // Hasil pencarian web: daftar sumber yang kini bisa dipakai semua anggota.
+    // Hasil pencarian web: ringkas di transkrip, daftar lengkapnya di tab Sumber.
     li.className = 'riset';
-    const kepala = document.createElement('div');
-    kepala.textContent = `🔎 ${m.teks}`;
-    li.append(kepala);
+    const t = document.createElement('span');
+    t.textContent = `🔎 ${m.teks}`;
+    li.append(t);
     if (m.sumber?.length) {
-      const daftar = document.createElement('div');
-      daftar.className = 'sumber';
-      for (const x of m.sumber) daftar.append(tautanSumber(x));
-      li.append(daftar);
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = 'Lihat sumber';
+      b.addEventListener('click', () => pilihTab('sumber'));
+      li.append(b);
+      tambahSumberPanel(m.sumber);
     }
   } else if (m.tipe === 'error') {
     li.className = 'error'; li.textContent = `⚠ ${m.nama} tidak bisa menjawab (${m.teks}). Dilewati.`;
@@ -149,10 +185,12 @@ function tambahLog(m) {
       <div><div class="kepala"><b>${esc(m.tipe === 'kesimpulan' ? 'Kesimpulan rapat' : m.nama)}</b>${esc(jam(m.ts))}${m.detik ? ` · ${m.detik.toFixed(0)} dtk` : ''}</div>
       <div class="isi">${esc(m.teks)}</div>${sumber ? `<div class="sumber" title="Potongan dokumen yang diberikan kepada pembicara ini">${sumber}</div>` : ''}</div>`;
     const w = warnaDari(m.id);
-    if (w) li.querySelector('.avatar').style.background = w;
+    if (w) { li.querySelector('.avatar').style.background = w; li.style.setProperty('--warna', w); }
   }
-  $('#log').append(li);
-  li.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  const log = $('#log');
+  const diBawah = log.scrollHeight - log.scrollTop - log.clientHeight < 80; // jangan menarik paksa kalau Louis sedang membaca ke atas
+  log.append(li);
+  if (diBawah) li.scrollIntoView({ block: 'end', behavior: 'smooth' });
 }
 
 // ---------- pemutar suara: ucapan tampil saat suaranya mulai, berurutan ----------
@@ -192,12 +230,23 @@ function ukurLevel() {
 requestAnimationFrame(ukurLevel);
 
 function tampilkanSubtitle(m) {
+  const w = warnaDari(m.id) || '#e08a52';
+  $('#subtitle').style.setProperty('--warna-pembicara', w);
   $('#sub-nama').textContent = m.tipe === 'kesimpulan' ? 'Kesimpulan rapat' : m.nama;
-  $('#sub-nama').style.color = warnaDari(m.id) || '#fff';
-  $('#sub-teks').textContent = m.teks.length > 420 ? `${m.teks.slice(0, 420)}…` : m.teks;
+  $('#sub-model').textContent = m.model ? m.model.split('/').pop() : '';
+  $('#sub-teks').textContent = m.teks;
+  $('#sub-teks').scrollTop = 0;
   $('#subtitle').hidden = false;
+  document.querySelectorAll('#log .bicara').forEach((el) => el.classList.remove('bicara'));
+  const li = document.querySelector(`#log li[data-nomor="${m.nomor}"]`);
+  if (li) { li.classList.add('bicara'); li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
 }
-function sembunyikanSubtitle() { $('#subtitle').hidden = true; ruang?.setPembicara(null); tampilkanStatus(); }
+function sembunyikanSubtitle() {
+  $('#subtitle').hidden = true;
+  document.querySelectorAll('#log .bicara').forEach((el) => el.classList.remove('bicara'));
+  ruang?.setPembicara(null);
+  tampilkanStatus();
+}
 
 function tampilkanStatus() {
   // Selama antrean belum habis, status "sedang berpikir" dari server menyangkut giliran yang belum diputar.
@@ -272,6 +321,7 @@ async function putarAntrean() {
     antrean.shift();
     if (item.ditarik) continue;
     sembunyikanSubtitle();
+    post('/api/diputar', { nomor: item.m.nomor, selesai: true }, true); // giliran ini sudah habis didengar
   }
   memutar = false;
   tampilkanStatus();
@@ -294,25 +344,124 @@ function aturTombol() {
   $('#form-pesan').hidden = !aktif || selesai;
   $('#lanjut').disabled = !aktif || selesai || sibuk;
   $('#selesai').disabled = !aktif || selesai;
+  $('.layout').classList.toggle('awal', !aktif || selesai);
+  $('#toggle-pimpinan').hidden = !aktif || selesai;
+  if (!aktif || selesai) sembunyikanTangan();
+  const st = $('#status-rapat');
+  st.className = `lencana-status${aktif && !selesai ? ' live' : selesai ? ' beres' : ''}`;
+  st.textContent = aktif && !selesai ? 'Rapat berjalan' : selesai ? 'Selesai' : 'Belum mulai';
+  if (!aktif) { setJudul(''); setRonde(0); setPeran(''); }
   if (selesai) $('#topik').value = '';
 }
+
+// ---- penunjukan pembicara: Louis klik/ucapkan, atau Moderator setelah hitung mundur ----
+let jamMundur = null;
+function tampilkanTangan(ev) {
+  const daftar = $('#daftar-tangan');
+  daftar.innerHTML = '';
+  for (const k of ev.kandidat || []) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.setProperty('--warna', warnaDari(k.id) || '#e08a52');
+    const n = document.createElement('b'); n.textContent = k.nama;
+    const a = document.createElement('small'); a.textContent = k.alasan || 'ingin menanggapi';
+    b.title = `Persilakan ${k.nama} bicara${k.alasan ? `: ${k.alasan}` : ''}`;
+    b.append(n, a);
+    b.addEventListener('click', () => tunjukAnggota(k.id));
+    daftar.append(b);
+  }
+  $('#bilah-tangan').hidden = false;
+  clearInterval(jamMundur);
+  const sisa = () => {
+    const d = Math.max(0, Math.ceil((ev.batas - Date.now()) / 1000));
+    $('#hitung-mundur').textContent = `Klik nama atau lencananya, atau ucapkan "silakan …". Moderator memilih dalam ${d} dtk`;
+  };
+  sisa();
+  jamMundur = setInterval(sisa, 500);
+}
+function sembunyikanTangan() {
+  clearInterval(jamMundur);
+  $('#bilah-tangan').hidden = true;
+}
+function tunjukAnggota(id) {
+  if (!aktif || selesai || id === moderator?.id) return;
+  sembunyikanTangan();
+  post('/api/pilih', { id });
+}
+function setPimpinan(siapa) {
+  const b = $('#toggle-pimpinan');
+  b.dataset.siapa = siapa;
+  b.textContent = siapa === 'moderator' ? '🎙 Moderator memimpin' : '👑 Saya memimpin';
+  b.title = siapa === 'moderator' ? 'Moderator yang menunjuk pembicara. Klik untuk mengambil alih.' : 'Kamu yang menunjuk pembicara. Klik untuk menyerahkan ke Moderator.';
+}
+$('#toggle-pimpinan').addEventListener('click', () => {
+  post('/api/pimpinan', { siapa: $('#toggle-pimpinan').dataset.siapa === 'moderator' ? 'louis' : 'moderator' });
+});
+if (ruang) ruang.onKlik = (id) => tunjukAnggota(id);
+
+function setPeran(t) {
+  $('#info-peran').hidden = !t;
+  $('#info-peran').textContent = t ? `Peran: ${t}` : '';
+  $('#info-peran').title = t || '';
+}
+function setJudul(t) {
+  $('#judul-topik').textContent = t || 'Tulis topik untuk memulai rapat';
+  $('#judul-topik').title = t || '';
+}
+let jumlahRonde = 0;
+function setRonde(n) { $('#info-ronde').textContent = n ? `Ronde ${n}${jumlahRonde >= n ? ` dari ${jumlahRonde}` : ''}` : ''; }
+
+// ---- tab transkrip/sumber, CC, panel ----
+function pilihTab(nama) {
+  const sumber = nama === 'sumber';
+  $('#log').hidden = sumber;
+  $('#daftar-sumber').hidden = !sumber;
+  $('#tab-transkrip').classList.toggle('aktif', !sumber);
+  $('#tab-sumber').classList.toggle('aktif', sumber);
+  $('#tab-transkrip').setAttribute('aria-selected', String(!sumber));
+  $('#tab-sumber').setAttribute('aria-selected', String(sumber));
+  if (sumber) $('.layout').classList.remove('tanpa-panel'), $('#toggle-panel').setAttribute('aria-pressed', 'true');
+}
+$('#tab-transkrip').addEventListener('click', () => pilihTab('transkrip'));
+$('#tab-sumber').addEventListener('click', () => pilihTab('sumber'));
+
+const simpanPilihan = (k, v) => { try { localStorage.setItem(k, v); } catch { /* abaikan */ } };
+const bacaPilihan = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+function pasangSaklar(id, kelas, kunci) {
+  const b = $(id);
+  const set = (nyala) => {
+    $('.layout').classList.toggle(kelas, !nyala);
+    b.setAttribute('aria-pressed', String(nyala));
+    simpanPilihan(kunci, nyala ? '1' : '0');
+    ruang?.ukur();
+  };
+  set(bacaPilihan(kunci) !== '0');
+  b.addEventListener('click', () => set(b.getAttribute('aria-pressed') !== 'true'));
+}
+pasangSaklar('#toggle-cc', 'tanpa-cc', 'rapat-cc');
+pasangSaklar('#toggle-panel', 'tanpa-panel', 'rapat-panel');
+
+// kolom selaan tumbuh mengikuti isi
+$('#pesan').addEventListener('input', (e) => { e.target.style.height = 'auto'; e.target.style.height = `${Math.min(120, e.target.scrollHeight)}px`; });
 
 // ---------- form ----------
 $('#form-mulai').addEventListener('submit', async (e) => {
   e.preventDefault();
   siapkanAudio();
   const peran = Object.fromEntries(anggota.filter((a) => a.peran).map((a) => [a.id, a.peran]));
-  await post('/api/mulai', { topik: $('#topik').value, ronde: Number($('#ronde').value), peran });
+  jumlahRonde = Number($('#ronde').value);
+  await post('/api/mulai', { topik: $('#topik').value, ronde: jumlahRonde, peran, peranBersama: $('#peran-bersama').value.trim() });
 });
 async function kirimPesan() {
   const t = $('#pesan').value.trim();
   if (!t) return;
   $('#pesan').value = '';
+  $('#pesan').style.height = 'auto';
   await post('/api/pesan', { teks: t });
 }
 $('#form-pesan').addEventListener('submit', (e) => { e.preventDefault(); kirimPesan(); });
 $('#pesan').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); kirimPesan(); } });
-$('#lanjut').addEventListener('click', () => post('/api/lanjut'));
+$('#lanjut').addEventListener('click', () => { jumlahRonde += 1; post('/api/lanjut'); });
 $('#selesai').addEventListener('click', () => post('/api/selesai'));
 
 // ---------- lampiran ----------
@@ -404,11 +553,18 @@ function terapkan(s) {
   sibuk = Boolean(s.sibuk);
   antrean.length = 0;
   $('#log').innerHTML = '';
+  kosongkanSumber();
+  if (s.topik) setJudul(s.topik);
+  setPeran(s.peranBersama || '');
+  setPimpinan(s.pimpinan || 'louis');
+  sembunyikanTangan();
+  if (s.jumlahRonde) jumlahRonde = s.jumlahRonde;
+  setRonde(s.ronde || 0);
   (s.log || []).forEach(tambahLog);   // riwayat (mis. setelah refresh) tampil langsung, tanpa suara
   gambarKursi();
   statusServer = { teks: s.status || '', pembicara: s.pembicara || null };
   tampilkanStatus();
-  $('#info-arsip').innerHTML = s.arsip ? `Transkrip: <a href="/${esc(s.arsip)}" target="_blank">${esc(s.arsip)}</a>` : '';
+  $('#info-arsip').innerHTML = s.arsip ? `Arsip rapat: <a href="/${esc(s.arsip)}" target="_blank">${esc(s.arsip)}</a>` : '';
   aturTombol();
 }
 
@@ -420,7 +576,7 @@ es.addEventListener('snapshot', (m) => {
   terapkan(s);
   // Halaman dimuat ulang di tengah rapat: semua yang ada di snapshot dianggap sudah diputar.
   const akhir = Math.max(0, ...(s.log || []).map((x) => x.nomor || 0));
-  if (akhir) post('/api/diputar', { nomor: akhir }, true);
+  if (akhir) post('/api/diputar', { nomor: akhir, selesai: true }, true);
 });
 es.addEventListener('message', (m) => {
   const ev = JSON.parse(m.data);
@@ -435,11 +591,15 @@ es.addEventListener('message', (m) => {
     const item = antrean.find((x) => x.m.nomor === ev.nomor);
     if (item) { if (ev.url) item.url = `/${ev.url}`; else item.gagal = true; }
   }
+  if (ev.jenis === 'tangan') ruang?.setTangan(ev.ids || []);
+  if (ev.jenis === 'tunggu-pilih') tampilkanTangan(ev);
+  if (ev.jenis === 'pilih-selesai') sembunyikanTangan();
+  if (ev.jenis === 'pimpinan') setPimpinan(ev.siapa);
   if (ev.jenis === 'status') { statusServer = { teks: ev.teks, pembicara: ev.pembicara }; tampilkanStatus(); }
   if (ev.jenis === 'anggota') { anggota = ev.anggota; if (ev.moderator) moderator = ev.moderator; gambarKursi(); }
   if (ev.jenis === 'dokumen') gambarDokumen(ev);
   if (ev.jenis === 'sibuk') { sibuk = ev.sibuk; if (ev.selesai) selesai = true; aturTombol(); }
-  if (ev.jenis === 'arsip') $('#info-arsip').innerHTML = `Transkrip: <a href="/${esc(ev.file)}" target="_blank">${esc(ev.file)}</a>`;
+  if (ev.jenis === 'arsip') $('#info-arsip').innerHTML = `Arsip rapat: <a href="/${esc(ev.file)}" target="_blank">${esc(ev.file)}</a>`;
 });
 
 // ---------- tahap 4: Louis bicara (tahan untuk bicara) ----------

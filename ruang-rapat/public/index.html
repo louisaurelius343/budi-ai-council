@@ -8,47 +8,91 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand"><span class="logo">⚖</span> Ruang Rapat Dewan</div>
+    <div class="brand"><span class="logo" aria-hidden="true">⚖</span><span>Ruang Rapat Dewan</span></div>
+    <div class="agenda" aria-live="polite">
+      <span id="status-rapat" class="lencana-status">Belum mulai</span>
+      <span id="judul-topik" class="judul-topik">Tulis topik untuk memulai rapat</span>
+      <span id="info-ronde" class="info-ronde"></span>
+      <span id="info-peran" class="info-peran" hidden></span>
+    </div>
     <div class="aksi">
-      <button type="button" id="buka-laci" class="btn">⚙ Anggota &amp; lampiran <span id="jml-dok-atas" class="jml"></span></button>
-      <button type="button" id="lanjut" class="btn" disabled>+ Satu ronde lagi</button>
-      <button type="button" id="selesai" class="btn utama" disabled>Selesaikan rapat</button>
-      <span id="conn" class="conn" title="Koneksi ke server lokal">●</span>
+      <button type="button" id="buka-laci" class="btn ikon" title="Anggota, model, suara, dan lampiran">⚙<span class="label-btn"> Anggota &amp; lampiran</span> <span id="jml-dok-atas" class="jml"></span></button>
+      <button type="button" id="lanjut" class="btn" disabled>+ Ronde</button>
+      <button type="button" id="selesai" class="btn bahaya" disabled>Akhiri rapat</button>
+      <span id="conn" class="conn" title="Koneksi ke server lokal" aria-label="Koneksi">●</span>
     </div>
   </header>
 
-  <main class="layout">
+  <main class="layout" id="area-chat">
+    <div id="lapisan-seret" class="lapisan-seret" hidden>Lepaskan untuk melampirkan ke rapat</div>
+
     <section class="panggung" aria-label="Ruang rapat 3D">
       <div id="ruang3d" class="ruang3d"></div>
-      <div id="subtitle" class="subtitle" hidden><b id="sub-nama"></b><span id="sub-teks"></span></div>
-      <p id="status" class="status-3d" aria-live="polite"></p>
-      <p id="mendengar" class="mendengar" hidden>🎤 Mendengarkan… <span id="teks-dengar"></span></p>
-      <p class="petunjuk-3d">Seret untuk melihat sekeliling</p>
+
+      <div class="hud-atas">
+        <p id="status" class="status-3d" aria-live="polite"></p>
+        <p id="mendengar" class="mendengar" hidden><span class="titik-rekam"></span>Mendengarkan… <span id="teks-dengar"></span></p>
+      </div>
+      <div class="hud-kanan">
+        <button type="button" id="toggle-pimpinan" class="btn kaca" hidden title="Siapa yang menunjuk pembicara berikutnya">👑 Saya memimpin</button>
+        <button type="button" id="toggle-cc" class="btn kaca" aria-pressed="true" title="Tampilkan/sembunyikan teks langsung">CC</button>
+        <button type="button" id="toggle-panel" class="btn kaca" aria-pressed="true" title="Tampilkan/sembunyikan transkrip">☰ Transkrip</button>
+      </div>
       <button type="button" id="aktifkan-suara" class="aktifkan-suara" hidden>🔊 Klik untuk mengaktifkan suara</button>
-    </section>
 
-    <section class="chat" id="area-chat" aria-label="Percakapan rapat">
-      <div id="lapisan-seret" class="lapisan-seret" hidden>Lepaskan untuk melampirkan ke rapat</div>
-      <ol id="log" class="log"></ol>
+      <!-- Teks langsung: satu-satunya tempat "siapa sedang bicara" -->
+      <div id="subtitle" class="subtitle" hidden aria-live="polite">
+        <div class="sub-kepala"><span id="sub-titik" class="sub-titik"></span><b id="sub-nama"></b><span id="sub-model" class="sub-model"></span></div>
+        <p id="sub-teks"></p>
+      </div>
 
-      <form id="form-mulai" class="input">
-        <textarea id="topik" rows="3" placeholder="Tulis masalah yang ingin dibahas dewan…" required></textarea>
+      <!-- Sebelum rapat: kartu mulai di tengah panggung -->
+      <form id="form-mulai" class="kartu-mulai">
+        <h1>Apa yang ingin dibahas dewan?</h1>
+        <p class="kecil">Moderator membuka rapat, empat anggota dari keluarga model berbeda berdebat, lalu Moderator menyimpulkan. Sumber dicari otomatis dari web.</p>
+        <textarea id="topik" rows="3" placeholder="Contoh: Apakah usaha kopi keliling masih menguntungkan di 2027?" required></textarea>
+        <label class="peran-bersama">Peran dewan
+          <input id="peran-bersama" list="preset-peran" maxlength="200" placeholder="Bebas berdebat (kosongkan) — atau pilih/ketik, mis. penguji skripsi yang kritis">
+        </label>
+        <datalist id="preset-peran">
+          <option value="penguji/reviewer yang kritis: cari kelemahan, celah logika, dan bagian yang belum terbukti"></option>
+          <option value="penguji sidang skripsi yang teliti dan menanyakan dasar metodologi"></option>
+          <option value="investor yang skeptis dan fokus pada risiko serta angka"></option>
+          <option value="tim brainstorming yang mengusulkan ide sebanyak mungkin lalu memilih yang terbaik"></option>
+          <option value="red team keamanan yang mencari cara sistem bisa disalahgunakan"></option>
+          <option value="konsultan bisnis praktis yang memberi langkah konkret"></option>
+        </datalist>
         <div class="baris">
-          <label>Ronde <select id="ronde"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-          <button type="button" class="btn mik" data-sasaran="topik" title="Tahan untuk mendiktekan topik">🎤</button>
+          <label class="pilih-ronde">Ronde <select id="ronde"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <button type="button" class="btn mik" data-sasaran="topik" title="Tahan untuk mendiktekan topik">🎤 Diktekan</button>
           <button type="submit" class="btn utama">Mulai rapat</button>
         </div>
       </form>
 
-      <form id="form-pesan" class="input" hidden>
-        <textarea id="pesan" rows="2" placeholder="Menyela atau menambahkan sesuatu… (Enter kirim, Shift+Enter baris baru)"></textarea>
-        <div class="baris">
-          <span id="info-arsip" class="kecil"></span>
-          <button type="button" class="btn mik" data-sasaran="pesan" title="Tahan untuk bicara (atau tahan Spasi)">🎤 Tahan untuk bicara</button>
-          <button type="submit" class="btn utama">Kirim</button>
-        </div>
+      <!-- Saat rapat: bilah kontrol di bawah panggung -->
+      <!-- Anggota yang angkat tangan: Louis menunjuk, atau Moderator memilih setelah hitung mundur -->
+      <div id="bilah-tangan" class="bilah-tangan" hidden aria-live="polite">
+        <span class="judul-tangan">✋ Ingin bicara</span>
+        <div id="daftar-tangan" class="daftar-tangan"></div>
+        <span id="hitung-mundur" class="hitung-mundur"></span>
+      </div>
+
+      <form id="form-pesan" class="bilah-kontrol" hidden>
+        <button type="button" class="btn mik mik-besar" data-sasaran="pesan" title="Tahan untuk bicara (atau tahan Spasi)"><span class="ikon-mik">🎤</span><span class="label-mik">Tahan untuk bicara</span></button>
+        <textarea id="pesan" rows="1" placeholder="Menyela atau memberi arahan… (Enter kirim)"></textarea>
+        <button type="submit" class="btn utama">Kirim</button>
       </form>
     </section>
+
+    <aside class="panel" id="panel" aria-label="Transkrip dan sumber">
+      <div class="tab" role="tablist">
+        <button type="button" role="tab" id="tab-transkrip" class="aktif" aria-selected="true">Transkrip</button>
+        <button type="button" role="tab" id="tab-sumber" aria-selected="false">Sumber <span id="jml-sumber" class="jml">0</span></button>
+      </div>
+      <ol id="log" class="log" role="tabpanel" aria-labelledby="tab-transkrip"></ol>
+      <ol id="daftar-sumber" class="daftar-sumber" role="tabpanel" aria-labelledby="tab-sumber" hidden></ol>
+      <p id="info-arsip" class="info-arsip kecil"></p>
+    </aside>
   </main>
 
   <aside id="laci" class="laci" hidden aria-label="Anggota dan lampiran">
@@ -66,7 +110,7 @@
       <ul id="daftar-dok" class="daftar-dok"></ul>
       <label class="centang"><input type="checkbox" id="tepercaya"> Hanya model tepercaya
         <span class="kecil">(isi dokumen hanya untuk Moderator/Holver; model gratis tidak melihatnya)</span></label>
-      <p id="info-unggah" class="kecil" aria-live="polite">PDF, Word, teks, Markdown, kode, CSV/JSON. Maks 10 MB per file. Bisa juga seret ke kolom chat.</p>
+      <p id="info-unggah" class="kecil" aria-live="polite">PDF, Word, teks, Markdown, kode, CSV/JSON. Maks 10 MB per file. Bisa juga diseret ke jendela rapat.</p>
     </section>
   </aside>
 
